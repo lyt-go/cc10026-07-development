@@ -77,5 +77,40 @@ npm run dev
 - 列表接口统一返回 `{ items, total, page, size }`，动作接口统一返回 `{ ok, message }`。
 - 状态流转只允许在 `app/services` 里改，路由层不做业务判断。
 
+## 过期导出的归档下架与归并取数
+
+导出任务登记的「过期时间」不再只是字段，而会驱动一套可执行的归档下架清册，
+并贯穿数据归并的取数资格。实现集中在 `app/services/data_manager.py`、
+`export_task.py`、`data_merge.py` 与 `routers/archive_merge.py`。
+
+- **归档下架清册**：`data/archives/decommission_roster.json` 为每份导出产物
+  维护一条记录，同时承载文件状态（在用/待下架/已下架）与取数资格。到期文件先变
+  「待下架」，值班人执行后转「已下架」并回写产物自身状态。
+- **归并取数资格**：数据归并统一按清册 `evaluate_export_eligibility` 辨认输入。
+  过期后无论是否已执行下架，新归并都不能再选用该文件；未到期文件也不能提前下架。
+- **在途归并可恢复**：归并任务持久化到 `data/merge_tasks/`，两侧来源的读取状态
+  （待读取/读取完成/需恢复）关联实际导出产物。一侧已读、另一侧到期时任务转
+  「待恢复」并写明需补哪项来源；接手人补有效来源后恢复交付，归档状态不会被误判
+  为汇总成功。归并实际产物落 `data/merge_artifacts/` 并由任务关联。
+- **业务时钟**：`data_manager.set_clock()` 可固定当前时间，便于复现到期前后场景。
+
+### 专用接口（固定路径，先于通用 `/api/{module}` 注册）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/archive/roster` | 生成并查看可执行的归档下架清册 |
+| POST | `/api/archive/execute` | 执行整份下架清册 |
+| POST | `/api/archive/exports/{id}` | 下架单份到期导出文件 |
+| GET | `/api/merge/sources` | 当前具备取数资格的归并输入 |
+| GET | `/api/merge/tasks` | 归并任务清单（含读取/受阻状态） |
+| POST | `/api/merge/tasks` | 登记归并任务（拒绝过期来源） |
+| POST | `/api/merge/tasks/{id}/start` | 读取主侧来源 |
+| POST | `/api/merge/tasks/{id}/secondary` | 读取从侧并尝试交付 |
+| GET | `/api/merge/tasks/{id}/delivery` | 核对能否交付、需补哪项来源 |
+| POST | `/api/merge/tasks/{id}/recover` | 补来源恢复受阻任务 |
+
+前端在「归档下架与归并取数」导航（`/archive_merge`，`ArchiveMergeView.vue`）
+提供清册执行、归并登记、受阻恢复的操作台；导出任务工作台也新增「执行下架」动作。
+
 领域：数据工程
 子方向：数据分析与数据应用

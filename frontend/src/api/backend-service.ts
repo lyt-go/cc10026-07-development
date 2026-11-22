@@ -59,3 +59,100 @@ export async function loadOverview(): Promise<OverviewResult> {
   if (!response.ok) throw new Error('运营概览读取失败')
   return await response.json()
 }
+
+// ========== 归档下架清册 ==========
+
+export async function loadDecommissionRoster(): Promise<Record<string, unknown>> {
+  const response = await request('/api/archive/roster')
+  if (!response.ok) throw new Error('归档下架清册读取失败')
+  return await response.json()
+}
+
+export async function executeDecommissionRoster(): Promise<Record<string, unknown>> {
+  const response = await request('/api/archive/execute', { method: 'POST' })
+  if (!response.ok) throw new Error('下架清册执行失败')
+  return await response.json()
+}
+
+export async function archiveExportFile(exportId: number): Promise<Record<string, unknown>> {
+  const response = await request(`/api/archive/exports/${exportId}`, { method: 'POST' })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '导出文件下架失败')
+  }
+  return await response.json()
+}
+
+// ========== 数据归并任务 ==========
+
+export async function listMergeSources(): Promise<{ items: unknown[]; total: number }> {
+  const response = await request('/api/merge/sources')
+  if (!response.ok) throw new Error('归并可用来源读取失败')
+  return await response.json()
+}
+
+export async function listMergeTasks(): Promise<{ items: unknown[]; total: number }> {
+  const response = await request('/api/merge/tasks')
+  if (!response.ok) throw new Error('归并任务读取失败')
+  return await response.json()
+}
+
+export async function registerMergeTask(
+  ruleId: number,
+  primaryExportId: number,
+  secondaryExportId: number,
+): Promise<Record<string, unknown>> {
+  const response = await request('/api/merge/tasks', {
+    method: 'POST',
+    body: JSON.stringify({
+      rule_id: ruleId,
+      primary_export_id: primaryExportId,
+      secondary_export_id: secondaryExportId,
+    }),
+  })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '归并任务登记失败')
+  }
+  return await response.json()
+}
+
+export async function startMergeTask(taskId: number): Promise<Record<string, unknown>> {
+  const response = await request(`/api/merge/tasks/${taskId}/start`, { method: 'POST' })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '主侧来源读取失败')
+  }
+  return await response.json()
+}
+
+export async function readMergeSecondary(taskId: number): Promise<Record<string, unknown>> {
+  const response = await request(`/api/merge/tasks/${taskId}/secondary`, { method: 'POST' })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '从侧来源读取失败')
+  }
+  return await response.json()
+}
+
+export async function checkMergeDelivery(taskId: number): Promise<Record<string, unknown>> {
+  const response = await request(`/api/merge/tasks/${taskId}/delivery`)
+  if (!response.ok) throw new Error('归并交付核对失败')
+  return await response.json()
+}
+
+export async function recoverMergeSource(
+  taskId: number,
+  side: 'primary' | 'secondary',
+  replacementExportId: number,
+): Promise<Record<string, unknown>> {
+  const response = await request(`/api/merge/tasks/${taskId}/recover`, {
+    method: 'POST',
+    body: JSON.stringify({ side, replacement_export_id: replacementExportId }),
+  })
+  if (!response.ok) {
+    const detail = (await response.json().catch(() => ({}))) as { detail?: string }
+    throw new Error(detail.detail ?? '归并来源恢复失败')
+  }
+  return await response.json()
+}

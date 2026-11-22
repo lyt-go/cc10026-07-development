@@ -17,8 +17,9 @@ import tempfile
 # 设置测试环境
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-# 设置临时DATA_ROOT
-temp_data = tempfile.mkdtemp(prefix='cc10026_test_')
+# 设置临时DATA_ROOT（与 test_archive_merge 共用同一固定根，DATA_ROOT 在
+# data_manager 首次导入时冻结；各用例 setup_method 负责清空重建）
+temp_data = os.path.join(tempfile.gettempdir(), "cc10026_shared_test_data")
 os.environ['DATA_ROOT'] = temp_data
 
 
